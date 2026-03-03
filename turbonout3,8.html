@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nitro Drift 2D - Turbonout Ultimate</title>
+<style>
+body { 
+    margin: 0; overflow: hidden; background: #000; 
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: white; user-select: none;
+}
+canvas { display: block; transition: filter 0.5s ease; }
+
+/* Telas de Menu */
+.screen {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; z-index: 100;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* Menu Principal e Base Botões */
+#mainMenu { background: radial-gradient(circle at 20% 50%, rgba(40, 40, 50, 0.8) 0%, rgba(0, 0, 0, 0.95) 100%); justify-content: center; padding-left: 10%; }
+.menu-options { display: flex; flex-direction: column; gap: 20px; margin-top: 30px; }
+.menu-logo { font-size: 100px; font-weight: 900; font-style: italic; text-transform: uppercase; margin: 0; letter-spacing: -6px; background: linear-gradient(180deg, #ffffff 30%, #a0a0a0 45%, #e74c3c 50%, #8e1e14 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 15px rgba(231, 76, 60, 0.6)); }
+
+.menu-btn { position: relative; background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, transparent 100%); border: none; color: white; font-size: 24px; font-weight: 800; text-align: left; text-transform: uppercase; font-style: italic; cursor: pointer; padding: 12px 40px; width: 300px; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: skewX(-20deg); border-left: 4px solid rgba(231, 76, 60, 0.5); overflow: hidden; }
+.menu-btn span { display: inline-block; transform: skewX(20deg); pointer-events: none;}
+.menu-btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(231, 76, 60, 0.4), transparent); transition: 0.5s; }
+.menu-btn:hover, .menu-btn.hovered, .menu-btn.nav-focused { padding-left: 60px; background: linear-gradient(90deg, rgba(231, 76, 60, 0.3) 0%, transparent 100%); border-left: 8px solid #e74c3c; text-shadow: 0 0 10px #e74c3c; box-shadow: -10px 0 20px rgba(231, 76, 60, 0.2); }
+.menu-btn:hover::before, .menu-btn.hovered::before, .menu-btn.nav-focused::before { left: 100%; }
+
+/* SISTEMA DE FOCO UI */
+.nav-focused {
+    outline: 3px solid #f1c40f !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.6) !important;
+    transform: scale(1.05);
+    z-index: 50;
+    transition: all 0.1s ease;
+}
+.menu-btn.nav-focused { border-left-color: #f1c40f !important; text-shadow: 0 0 10px #f1c40f; transform: scale(1.05) skewX(-20deg); }
+.swatch.nav-focused { transform: scale(1.25); border-color: #f1c40f; z-index: 10; position: relative; }
+.custom-card.nav-focused { border-color: #f1c40f; background: rgba(241, 196, 15, 0.2); }
+.decal-action-btn.nav-focused { background: #f1c40f; color: #000; border-color: #fff; }
+
+/* Settings / Setup Tabs */
+.settings-header { display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+.tab-btn { background: none; border: none; color: #aaa; font-size: 20px; font-weight: 900; font-style: italic; text-transform: uppercase; cursor: pointer; padding: 5px 15px; transition: 0.2s; }
+.tab-btn.active { color: #e74c3c; border-bottom: 3px solid #e74c3c; text-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+.settings-pad-selector { margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 4px; display: inline-block; border-left: 4px solid #3498db;}
+.settings-pad-selector select { background: #111; color: #fff; border: 1px solid #333; padding: 5px 10px; font-weight: bold; font-family: inherit; margin-left: 10px; outline: none; cursor: pointer;}
+
+/* Garagem - Layout Principal */
+#garageMenu { background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%); padding: 40px; box-sizing: border-box; display: flex; flex-direction: column; }
+.garage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid rgba(231, 76, 60, 0.3); padding-bottom: 10px; flex-shrink: 0; }
+.car-selection { display: flex; justify-content: center; align-items: stretch; flex-grow: 1; gap: 50px; overflow: hidden; padding-bottom: 10px; flex-wrap: wrap; }
+.miata-preview-container { position: relative; width: 300px; height: 100%; min-height: 400px; display: flex; justify-content: center; align-items: center; perspective: 1000px; cursor: ns-resize; }
+.car-display-wrapper { position: relative; transition: all 0.5s ease; }
+.car-entering { animation: carEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.car-exiting { animation: carExit 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes carEntry { 0% { transform: translateY(600px) scale(0.9); opacity: 0; } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes carExit { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-600px) scale(1.1); opacity: 0; } }
+
+/* Formas Base dos Carros */
+.miata-body { position: relative; width: 80px; height: 160px; background: linear-gradient(to right, #ccc, #fff, #ccc); border-radius: 15px; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(255, 255, 255, 0.3); overflow: hidden; }
+.skyline-body { position: relative; width: 85px; height: 180px; background: linear-gradient(to right, #ccc, #fff, #ccc); border-radius: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(255, 255, 255, 0.3); overflow: hidden; }
+.skyline-stripes { position: absolute; top: 0; left: 25%; width: 50%; height: 100%; background: repeating-linear-gradient(90deg, transparent, transparent 15px, rgba(0,0,0,0.1) 15px, rgba(0,0,0,0.1) 25px); pointer-events: none; }
+.miata-body::before, .skyline-body::before { content: ''; position: absolute; top: 40px; left: 10px; width: 60px; height: 50px; background: #1c2833; border-radius: 5px; z-index: 5;}
+.skyline-body::before { top: 45px; left: 10px; width: 65px; height: 55px; }
+.miata-body::after, .skyline-body::after { content: ''; position: absolute; bottom: 25px; left: 15px; width: 50px; height: 25px; background: #1c2833; border-radius: 3px; z-index: 5;}
+.skyline-body::after { bottom: 30px; left: 12px; width: 61px; height: 30px; }
+.bmw-body { position: relative; width: 92px; height: 185px; background: linear-gradient(to right, #ccc, #fff, #ccc); border-radius: 6px; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(255, 255, 255, 0.3); overflow: hidden; }
+.bmw-body::before { content: ''; position: absolute; top: 50px; left: 12px; width: 68px; height: 45px; background: #1c2833; border-radius: 4px; border-top: 5px solid #000; z-index: 5;}
+.bmw-body::after { content: ''; position: absolute; bottom: 35px; left: 16px; width: 60px; height: 35px; background: #1c2833; border-radius: 3px; z-index: 5;}
+.bmw-stripes { position: absolute; top: 0; left: 20px; width: 12px; height: 100%; background: repeating-linear-gradient(0deg, #003da5, #003da5 20%, #000 20%, #000 40%, #e21a2c 40%, #e21a2c 60%, transparent 60%, transparent 100%); opacity: 0.8; pointer-events: none;}
+.bmw-wing { position: absolute; bottom: 8px; left: -5%; width: 110%; height: 16px; background: #111; border-radius: 2px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); z-index: 25; }
+
+.car-lights-container { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; z-index:20; pointer-events:none;}
+.light-miata { width: 20px; height: 12px; background: rgba(0,0,0,0.15); border-radius: 3px; }
+.light-skyline { width: 24px; height: 10px; background: linear-gradient(90deg, #fff, #ddd); border-radius: 2px; box-shadow: 0 0 10px rgba(255,255,255,0.5); position: relative; overflow: hidden; }
+.light-bmw { width: 22px; height: 8px; background: #fff; border-radius: 2px; box-shadow: 0 0 12px #fff, 0 0 25px #3498db; }
+
+/* Customização UI - Responsivo e Adaptativo */
+.car-info-box { 
+    background: rgba(0,0,0,0.8); 
+    padding: 30px; 
+    border-left: 5px solid #e74c3c; 
+    transform: skewX(-10deg); 
+    width: 100%; 
+    max-width: 480px; 
+    max-height: 80vh; 
+    transition: all 0.4s ease; 
+    position: relative; 
+    display: flex; 
+    flex-direction: column; 
+    box-sizing: border-box;
+}
+.car-info-content { 
+    transform: skewX(10deg); 
+    transition: all 0.4s ease; 
+    display: flex; 
+    flex-direction: column; 
+    overflow-y: auto; 
+    overflow-x: hidden;
+    flex: 1; 
+    padding-right: 15px; 
+}
+.car-info-content.view-switching { opacity: 0; transform: skewX(10deg) translateX(30px); }
+
+/* Grids Dinâmicos */
+.custom-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
+    gap: 15px; 
+    margin-top: 15px; 
+}
+.color-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(35px, 1fr)); 
+    gap: 8px; 
+    margin-top: 10px; 
+    padding: 5px;
+}
+
+.custom-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border-radius: 4px; pointer-events: auto;}
+.custom-card:hover { background: rgba(231, 76, 60, 0.2); border-color: #e74c3c; transform: scale(1.05); }
+.custom-card.selected { background: rgba(231, 76, 60, 0.4); border-color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.3); }
+.custom-card svg { width: 32px; height: 32px; fill: #fff; transition: fill 0.2s; pointer-events: none;}
+.custom-card:hover svg, .custom-card.nav-focused svg { fill: #f1c40f; }
+.custom-card span { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; pointer-events: none;}
+.car-name-title { font-size: 38px; font-weight: 900; font-style: italic; text-transform: uppercase; margin-bottom: 5px; flex-shrink: 0; }
+
+/* Gráfico Comparativo de Stats */
+#statsPanel { 
+    transform: skewX(10deg); 
+    flex-shrink: 0; 
+    margin-top: 15px; 
+    padding-top: 15px; 
+    border-top: 2px solid rgba(255,255,255,0.1); 
+    display: none; 
+}
+.stats-container { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.stat-row { display: flex; align-items: center; font-size: 11px; font-weight: 800; color: #ccc; }
+.stat-label { width: 90px; text-transform: uppercase; letter-spacing: 1px; }
+.stat-bar-bg { flex-grow: 1; height: 12px; background: rgba(255,255,255,0.1); border-radius: 2px; position: relative; overflow: hidden; margin-right: 10px; }
+.stat-bar-fill { position: absolute; left: 0; top: 0; height: 100%; background: #fff; transition: width 0.3s cubic-bezier(0.23, 1, 0.32, 1); }
+.stat-bar-preview { position: absolute; top: 0; height: 100%; transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1); opacity: 0.9; }
+.stat-value { width: 35px; text-align: right; color: #fff; font-family: monospace; font-size: 13px; }
+.stat-diff { width: 45px; text-align: right; font-weight: 900; font-family: monospace; font-size: 13px; }
+.diff-positive { color: #2ecc71; text-shadow: 0 0 5px rgba(46, 204, 113, 0.5); }
+.diff-negative { color: #e74c3c; text-shadow: 0 0 5px rgba(231, 76, 60, 0.5); }
+.diff-neutral { color: #555; }
+
+.swatch { height: 35px; border-radius: 4px; cursor: pointer; border: 2px solid #444; transition: 0.2s; }
+.swatch:hover { transform: scale(1.15); border-color: #fff; z-index: 10; position: relative;}
+.decal-action-btn { flex: 1; padding: 10px 5px; background: rgba(255,255,255,0.1); border: 1px solid #555; color: #fff; font-size: 10px; font-weight: bold; text-transform: uppercase; cursor: pointer; transition: 0.2s; border-radius: 4px; text-align: center;}
+.decal-action-btn.active { background: #e74c3c; border-color: #fff; }
+
+.hint-wrapper { margin: auto auto 0; width: 100%; max-width: 600px; height: 60px; position: relative; overflow: hidden; transform: skewX(-20deg); border-left: 4px solid #f1c40f; background: linear-gradient(90deg, rgba(241, 196, 15, 0.15) 0%, transparent 100%); display: flex; align-items: center; flex-shrink: 0;}
+.hint-text { position: absolute; width: 100%; padding: 0 40px; box-sizing: border-box; color: #fff; font-size: 14px; font-style: italic; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(100%) skewX(20deg); opacity: 0; }
+.hint-text span { color: #f1c40f; margin-right: 8px; }
+.hint-text.active { transform: translateX(0) skewX(20deg); opacity: 1; }
+
+/* In Game HUD */
+.game-ui { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+.game-ui.visible { opacity: 1; pointer-events: auto; }
+.gauge-container, .accelerometer { position: absolute; bottom: 30px; width: 120px; height: 120px; background: radial-gradient(circle, #1a1a1c 0%, #000 100%); border: 2px solid rgba(231, 76, 60, 0.4); border-radius: 50%; box-shadow: 0 0 25px rgba(0,0,0,0.7); overflow: hidden; }
+.gauge-container { right: 30px; }
+.accelerometer { left: 30px; display: flex; align-items: center; justify-content: center; }
+.accel-label { position: absolute; top: 10px; width: 100%; text-align: center; font-size: 0.6em; font-weight: 900; color: rgba(231, 76, 60, 0.6); letter-spacing: 1px; }
+.gauge-needle { position: absolute; bottom: 50%; left: 50%; width: 2px; height: 50px; background: linear-gradient(to top, #e74c3c 80%, transparent); transform-origin: bottom center; z-index: 5; }
+.speed-digital { position: absolute; bottom: 30px; width: 100%; text-align: center; font-size: 16px; font-weight: 900; color: #f1c40f; font-style: italic; }
+.gear-display { position: absolute; bottom: 50px; width: 100%; text-align: center; font-size: 20px; font-weight: 900; color: #e74c3c; text-shadow: 0 0 5px rgba(231, 76, 60, 0.5); }
+.accel-dot { width: 12px; height: 12px; background: #f1c40f; border-radius: 50%; box-shadow: 0 0 15px #f1c40f; position: relative; z-index: 10; }
+
+.pedals-hud { position: absolute; bottom: 30px; left: 170px; display: flex; gap: 15px; height: 120px; }
+.pedal-wrapper { position: relative; height: 100%; }
+.pedal-bg { width: 22px; height: 100%; background: rgba(26, 26, 28, 0.8); border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 5px; position: relative; overflow: hidden; box-shadow: inset 0 0 10px #000; }
+.pedal-fill { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; transition: height 0.03s linear; }
+.pedal-fill.brake { background: linear-gradient(to top, #900, #e74c3c); }
+.pedal-fill.accel { background: linear-gradient(to top, #006400, #2ecc71); }
+.pedal-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 900; color: rgba(255,255,255,0.6); text-align: center; }
+
+.tire-temp-hud { position: absolute; right: 170px; bottom: 30px; display: grid; grid-template-columns: 18px 18px; gap: 10px; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1);}
+.tire-box { position: relative; width: 18px; height: 30px; background: #2ecc71; border-radius: 4px; overflow: hidden; box-shadow: inset 0 0 5px #000; transition: background-color 0.2s;}
+.tire-wear-fill { position: absolute; top: 0; left: 0; width: 100%; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.3), rgba(0,0,0,0.3) 2px, transparent 2px, transparent 4px); opacity: 0.8; transition: height 0.2s; }
+.tire-label-hud { position: absolute; top: -16px; left: 0; width: 100%; text-align:center; color: #fff; font-size:9px; font-weight:900; letter-spacing: 1px;}
+.tire-alert { position: absolute; bottom: -16px; width: 100%; text-align:center; color: #e74c3c; font-size: 10px; font-weight: 900; animation: blink 0.5s infinite; display: none;}
+
+/* Custom Scrollbar aprimorada */
+::-webkit-scrollbar { width: 6px; } 
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; } 
+::-webkit-scrollbar-thumb { background: rgba(241, 196, 15, 0.5); border-radius: 3px; } 
+::-webkit-scrollbar-thumb:hover { background: #f1c40f; }
+</style>
+</head>
+<body>
+
+<div id="mainMenu" class="screen">
+    <div class="menu-logo">Turbonout</div>
+    <div style="font-size: 18px; color: #e74c3c; font-weight: 700; letter-spacing: 8px; text-transform: uppercase; margin-top: -10px;">DRIFT RACING</div>
+    <div class="menu-options">
+        <button class="menu-btn nav-item" onclick="startGame()"><span>Iniciar Corrida</span></button>
+        <button class="menu-btn nav-item" onclick="openGarage()"><span>Garagem</span></button>
+        <button class="menu-btn nav-item" onclick="openSettings()"><span>Configurações</span></button>
+    </div>
+</div>
+
+<div id="settingsMenu" class="screen hidden" style="background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%); padding: 40px; box-sizing: border-box; overflow-y: auto;">
+    <div class="settings-header">
+        <button class="tab-btn active">Controles</button>
+    </div>
+    
+    <div class="settings-pad-selector">
+        Layout de Controle HUD:
+        <select id="padSelect" class="nav-item" onchange="bindings.padType = this.value; renderControls(); saveSettings();">
+            <option value="xbox">XBOX (XInput)</option>
+            <option value="ps">PLAYSTATION (DualShock/DualSense)</option>
+        </select>
+    </div>
+
+    <div style="color:#f1c40f; font-weight:bold; margin-bottom: 20px; font-style: italic;">Selecione uma ação e aperte o botão desejado. Timeout: 5 segundos.</div>
+    <div id="controlsList" style="display:flex; flex-direction:column; gap:10px; max-width:650px;"></div>
+    
+    <button class="menu-btn nav-item" style="margin-top: 40px;" onclick="saveSettings(); showScreen('mainMenu');"><span>SALVAR & VOLTAR</span></button>
+</div>
+
+<div id="garageMenu" class="screen hidden">
+    <div class="garage-header">
+        <h1 style="font-style: italic; font-weight: 900; margin: 0;">MINHA GARAGEM</h1>
+        <button class="menu-btn nav-item" onclick="showScreen('mainMenu')" style="font-size: 18px; width: auto; padding: 5px 20px;"><span>VOLTAR</span></button>
+    </div>
+
+    <div class="car-selection">
+        <div class="miata-preview-container" id="garageContainer">
+            <div id="garageCarDisplay" class="car-display-wrapper"></div>
+        </div>
+        <div class="car-info-box" id="infoBox">
+            <div class="car-info-content" id="carInfo"></div>
+            <!-- PAINEL DE STATUS FIXO AO FUNDO -->
+            <div id="statsPanel"></div>
+        </div>
+    </div>
+
+    <div class="hint-wrapper">
+        <div class="hint-text active" id="garageHint"><span>Navegação:</span> Setas/D-Pad para mover | Enter/A para Confirmar | Esc/B para Voltar</div>
+    </div>
+</div>
+
+<div class="game-ui" id="gameUI">
+    <div class="accelerometer"><div class="accel-label">FORÇA-G</div><div id="accelDot" class="accel-dot"></div></div>
+    
+    <div class="pedals-hud">
+        <div class="pedal-wrapper"><div class="pedal-bg"><div id="brakeBar" class="pedal-fill brake"></div></div><div class="pedal-label">BRK</div></div>
+        <div class="pedal-wrapper"><div class="pedal-bg"><div id="accelBar" class="pedal-fill accel"></div></div><div class="pedal-label">ACC</div></div>
+    </div>
+
+    <div class="tire-temp-hud">
+        <div class="tire-label-hud">TIRES</div>
+        <div id="tireFL" class="tire-box"><div id="wearFL" class="tire-wear-fill"></div></div>
+        <div id="tireFR" class="tire-box"><div id="wearFR" class="tire-wear-fill"></div></div>
+        <div id="tireRL" class="tire-box"><div id="wearRL" class="tire-wear-fill"></div></div>
+        <div id="tireRR" class="tire-box"><div id="wearRR" class="tire-wear-fill"></div></div>
+        <div id="tireAlert" class="tire-alert">WEAR CRITICAL!</div>
+    </div>
+
+    <div class="gauge-container"><div id="gaugeFace" style="width:100%; height:100%; position:relative;"></div><div id="gaugeNeedle" class="gauge-needle"></div><div class="gear-display" id="gearDisp">N</div><div class="speed-digital" id="speedDisp">0</div></div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+// ICONS
+const ICONS = {
+    paint: `<svg viewBox="0 0 24 24"><path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,12V9C18.16,10.22 15.22,11 12,11C8.78,11 5.84,10.22 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,17V14C18.16,15.22 15.22,16 12,16C8.78,16 5.84,15.22 4,14Z"/></svg>`,
+    engine: `<svg viewBox="0 0 24 24"><path d="M7,4V6H17V4H7M22,12V14H20.42C20.1,15.74 19.06,17.26 17.58,18.21L18.5,21.5L16.5,22L15.36,18.89C14.33,19.6 13.21,20 12,20C10.79,20 9.67,19.6 8.64,18.89L7.5,22L5.5,21.5L6.42,18.21C4.94,17.26 3.9,15.74 3.58,14H2V12H3.58C3.9,10.26 4.94,8.74 6.42,7.79L5.5,4.5L7.5,4L8.64,7.11C9.67,6.4 10.79,6 12,6C13.21,6 14.33,6.4 15.36,7.11L16.5,4L18.5,4.5L17.58,7.79C19.06,8.74 20.1,10.26 20.42,12H22M12,10A4,4 0 0,0 8,14A4,4 0 0,0 12,18A4,4 0 0,0 16,14A4,4 0 0,0 12,10Z"/></svg>`,
+    turbo: `<svg viewBox="0 0 24 24"><path d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2,12,2M12,20C7.58,20 4,16.42 4,12C4,7.58 7.58,4 12,4C16.42,4 20,7.58 20,12C20,16.42 16.42,20 12,20M12,11A1,1 0 0,1 13,12A1,1 0 0,1 12,13A1,1 0 0,1 11,12A1,1 0 0,1 12,11M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8M12,14.5A2.5,2.5 0 0,1 9.5,12A2.5,2.5 0 0,1 12,9.5A2.5,2.5 0 0,1 14.5,12A2.5,2.5 0 0,1 12,14.5Z"/></svg>`,
+    decals: `<svg viewBox="0 0 24 24"><path d="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.89 20.1,3 19,3M12,10.5C13.38,10.5 14.5,11.62 14.5,13C14.5,14.38 13.38,15.5 12,15.5C10.62,15.5 9.5,14.38 9.5,13C9.5,11.62 10.62,10.5 12,10.5M12,8C9.24,8 7,10.24 7,13C7,15.76 9.24,18 12,18C14.76,18 17,15.76 17,13C17,10.24 14.76,8 12,8Z"/></svg>`,
+    wheel: `<svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,7A5,5 0 0,0 7,12A5,5 0 0,0 12,17A5,5 0 0,0 17,12A5,5 0 0,0 12,7M12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9Z"/></svg>`
+};
+
+const PALETTE =['#ffffff','#000000','#555555','#cccccc','#ff4d4d','#a01a1a','#3498db','#1a3a6b','#f1c40f','#b8980b','#2ecc71','#1e8449','#9b59b6','#e67e22','#1abc9c','#e84393','#fdcb6e','#00cec9','#6c5ce7','#ffeaa7','#d63031','#0984e3','#00b894'];
+
+const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+const screens = { mainMenu: document.getElementById('mainMenu'), garageMenu: document.getElementById('garageMenu'), settingsMenu: document.getElementById('settingsMenu'), gameUI: document.getElementById('gameUI') };
+
+// ----------------------------------------------------
+// SISTEMA DE NAVEGAÇÃO ESPACIAL + MOUSE SINC
+// ----------------------------------------------------
+let navIndex = 0;
+let navItems =[];
+let navInputCooldown = 0;
+let previewPart = null;
+
+function refreshNav() {
+    navItems = Array.from(document.querySelectorAll('.screen:not(.hidden) .nav-item:not([style*="opacity: 0.4"])'));
+    if (navItems.length === 0) return;
+    if (navIndex >= navItems.length) navIndex = 0;
+    updateNavVisuals();
+}
+
+function setNavIndex(el) {
+    let idx = navItems.indexOf(el);
+    if(idx !== -1 && idx !== navIndex) {
+        navIndex = idx;
+        updateNavVisuals();
+    }
+}
+
+function updateNavVisuals() {
+    previewPart = null; 
+    navItems.forEach((el, i) => {
+        if (i === navIndex) {
+            el.classList.add('nav-focused');
+            el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+            
+            if (el.dataset.partCategory && el.dataset.partId) {
+                previewPart = { category: el.dataset.partCategory, id: el.dataset.partId };
+            }
+        } else {
+            el.classList.remove('nav-focused');
+        }
+    });
+    updateStatsChart();
+}
+
+function moveNav(dx, dy) {
+    if (navItems.length <= 1) return;
+    
+    let current = navItems[navIndex].getBoundingClientRect();
+    let cX = current.left + current.width / 2;
+    let cY = current.top + current.height / 2;
+    let bestIndex = -1, bestDist = Infinity;
+
+    navItems.forEach((el, i) => {
+        if (i === navIndex) return;
+        let rect = el.getBoundingClientRect();
+        let tX = rect.left + rect.width / 2;
+        let tY = rect.top + rect.height / 2;
+
+        let valid = false;
+        if (dx > 0 && tX > cX + 10 && Math.abs(tY - cY) < rect.height * 1.5) valid = true;
+        if (dx < 0 && tX < cX - 10 && Math.abs(tY - cY) < rect.height * 1.5) valid = true;
+        if (dy > 0 && tY > cY + 10) valid = true;
+        if (dy < 0 && tY < cY - 10) valid = true;
+
+        if (valid) {
+            let dist = Math.sqrt(Math.pow(tX - cX, 2) + Math.pow(tY - cY, 2));
+            if (dx !== 0) dist += Math.abs(tY - cY) * 3; 
+            if (dy !== 0) dist += Math.abs(tX - cX) * 3; 
+            if (dist < bestDist) { bestDist = dist; bestIndex = i; }
+        }
+    });
+
+    if (bestIndex === -1) {
+        if (dy > 0 || dx > 0) bestIndex = Math.min(navIndex + 1, navItems.length - 1);
+        else if (dy < 0 || dx < 0) bestIndex = Math.max(navIndex - 0, 0);
+    }
+
+    if (bestIndex !== -1 && bestIndex !== navIndex) {
+        navIndex = bestIndex;
+        updateNavVisuals();
+    }
+}
+
+function handleBackButton() {
+    if (garageView === 'info') showScreen('mainMenu');
+    else if (garageView === 'categories') switchGarageView('info');
+    else if (['paint', 'decals', 'engine'].includes(garageView)) switchGarageView('categories');
+    else if (garageView.startsWith('decal-') && garageView !== 'decal-edit') switchGarageView('decals');
+    else if (garageView === 'decal-edit') switchGarageView('decals');
+}
+
+function handleMenuInput() {
+    if (isPlaying || waitingForKey) return;
+    const now = performance.now();
+    if (now - navInputCooldown < 150) return;
+
+    let dx = 0, dy = 0;
+    let confirm = false, back = false, carChangeNext = false, carChangePrev = false;
+
+    if (keys['arrowright'] || keys['d']) dx = 1;
+    if (keys['arrowleft'] || keys['a']) dx = -1;
+    if (keys['arrowdown'] || keys['s']) dy = 1;
+    if (keys['arrowup'] || keys['w']) dy = -1;
+    if (keys['enter'] || keys[' ']) confirm = true;
+    if (keys['escape'] || keys['backspace']) back = true;
+
+    const gp = navigator.getGamepads()[0];
+    if (gp) {
+        if (gp.axes[0] > 0.5 || gp.buttons[15]?.pressed) dx = 1;
+        if (gp.axes[0] < -0.5 || gp.buttons[14]?.pressed) dx = -1;
+        if (gp.axes[1] > 0.5 || gp.buttons[13]?.pressed) dy = 1;
+        if (gp.axes[1] < -0.5 || gp.buttons[12]?.pressed) dy = -1;
+        if (gp.buttons[0]?.pressed) confirm = true; 
+        if (gp.buttons[1]?.pressed) back = true; 
+        if (gp.buttons[4]?.pressed) carChangePrev = true; 
+        if (gp.buttons[5]?.pressed) carChangeNext = true; 
+    }
+
+    if (garageView === 'decal-edit') {
+        if (dx !== 0 || dy !== 0) { navInputCooldown = now + 50; return; }
+    }
+
+    if (dx !== 0 || dy !== 0) {
+        moveNav(dx, dy);
+        navInputCooldown = now;
+    }
+
+    if (confirm && navItems[navIndex]) {
+        navItems[navIndex].click();
+        navInputCooldown = now + 200;
+    }
+
+    if (back) {
+        if(!screens.mainMenu.classList.contains('hidden')) return;
+        if(!screens.settingsMenu.classList.contains('hidden')) { saveSettings(); showScreen('mainMenu'); }
+        else handleBackButton();
+        navInputCooldown = now + 200;
+    }
+
+    if (garageView === 'info' && !isSwitching) {
+        if (carChangeNext) { selectedCarIndex = (selectedCarIndex + 1) % carsData.length; updateGarageDisplay(); navInputCooldown = now + 200; } 
+        else if (carChangePrev) { selectedCarIndex = (selectedCarIndex - 1 + carsData.length) % carsData.length; updateGarageDisplay(); navInputCooldown = now + 200; }
+    }
+}
+
+
+// ----------------------------------------------------
+// SISTEMA DE CLASSE DINÂMICA & PI (PERFORMANCE INDEX)
+// ----------------------------------------------------
+function calculatePI(stats) {
+    let pi = (stats.power * 0.9) + (stats.torque * 0.45) + ((2000 - stats.weight) * 0.15) + (stats.grip * 1.1);
+    return Math.max(100, Math.floor(pi));
+}
+
+function getCarClass(pi) {
+    if (pi < 450) return "D";
+    if (pi < 550) return "C";
+    if (pi < 650) return "B";
+    if (pi < 750) return "A";
+    if (pi < 850) return "S";
+    return "X";
+}
+
+function getClassColor(carClass) {
+    const colors = {
+        'D': '#3498db',
+        'C': '#2ecc71',
+        'B': '#f1c40f',
+        'A': '#e67e22',
+        'S': '#e74c3c',
+        'X': '#9b59b6'
+    };
+    return colors[carClass] || '#ffffff';
+}
+
+
+// ----------------------------------------------------
+// CATÁLOGO DE PEÇAS & STATS
+// ----------------------------------------------------
+const PARTS_CATALOG = {
+    engine:[
+        { id: 'turbo_street', name: 'Turbo Street', category: 'engine', req: 1, icon: ICONS.turbo, mods: { powerBonus: 40, torqueBonus: 30, weightReduction: -5, gripBonus: -2 } },
+        { id: 'turbo_sport', name: 'Turbo Sport', category: 'engine', req: 2, icon: ICONS.turbo, mods: { powerBonus: 80, torqueBonus: 60, weightReduction: -8, gripBonus: -4 } },
+        { id: 'biturbo_racing', name: 'Bi-Turbo Racing', category: 'engine', req: 3, icon: ICONS.turbo, mods: { powerBonus: 150, torqueBonus: 120, weightReduction: -12, gripBonus: -8 } },
+        { id: 'biturbo_pro', name: 'Bi-Turbo PRO', category: 'engine', req: 4, icon: ICONS.turbo, mods: { powerBonus: 250, torqueBonus: 200, weightReduction: -15, gripBonus: -15 } }
+    ],
+    tires:[
+        { id: 'tires_street', name: 'Pneus Rua', category: 'tires', req: 1, icon: ICONS.wheel, mods: { powerBonus: 0, torqueBonus: 0, weightReduction: 0, gripBonus: 10 } },
+        { id: 'tires_sport', name: 'Pneus Esporte', category: 'tires', req: 2, icon: ICONS.wheel, mods: { powerBonus: 0, torqueBonus: 0, weightReduction: 0, gripBonus: 25 } },
+        { id: 'tires_racing', name: 'Slicks Racing', category: 'tires', req: 3, icon: ICONS.wheel, mods: { powerBonus: 0, torqueBonus: 0, weightReduction: 0, gripBonus: 40 } },
+        { id: 'tires_pro', name: 'Slicks PRO', category: 'tires', req: 4, icon: ICONS.wheel, mods: { powerBonus: 0, torqueBonus: 0, weightReduction: -5, gripBonus: 60 } }
+    ]
+};
+
+const carsData =[
+    {
+        name: "Mazda Miata MX-5", subtitle: "REI DO DRIFT", desc: "Leve, ágil e perfeito para curvas. Motor e câmbio focados em aceleração rápida e drift contínuo.",
+        color: "#ffffff", darkColor: "#cccccc", style: "miata-body", drift: 0.22, decals:[], currentBuildLevel: 0,
+        baseStats: { power: 140, torque: 150, weight: 1050, grip: 50 },
+        upgradeModifiers: { powerBonus: 0, torqueBonus: 0, weightReduction: 0, gripBonus: 0 },
+        finalStats: { power: 140, torque: 150, weight: 1050, grip: 50 },
+        equippedParts: { engine: null, tires: null },
+        physics: { mass: 1050, dragCd: 0.38, frontalArea: 1.7, tireRadius: 0.30, finalDrive: 4.10, gearRatios:[3.13, 1.88, 1.33, 1.00, 0.81, 0.67], maxRPM: 7200, idleRPM: 800 }
+    },
+    {
+        name: "Nissan Skyline R34", subtitle: "LENDA DAS RUAS", desc: "Força bruta com tração inteligente. Altíssimo torque em médias rotações devido aos turbos gêmeos.",
+        color: "#ffffff", darkColor: "#cccccc", style: "skyline-body", drift: 0.15, decals:[], currentBuildLevel: 0,
+        baseStats: { power: 280, torque: 392, weight: 1560, grip: 70 },
+        upgradeModifiers: { powerBonus: 0, torqueBonus: 0, weightReduction: 0, gripBonus: 0 },
+        finalStats: { power: 280, torque: 392, weight: 1560, grip: 70 },
+        equippedParts: { engine: null, tires: null },
+        physics: { mass: 1560, dragCd: 0.34, frontalArea: 2.0, tireRadius: 0.32, finalDrive: 3.54, gearRatios:[3.82, 2.36, 1.68, 1.31, 1.00, 0.79], maxRPM: 8000, idleRPM: 900 }
+    },
+    {
+        name: "BMW M3 GTR", subtitle: "RACE CAR E46", desc: "Motor V8 4.0 aspirado, tração traseira com downforce massivo e gearbox de dentes retos que destrói tímpanos.",
+        color: "#ffffff", darkColor: "#cccccc", style: "bmw-body", drift: 0.10, decals:[], currentBuildLevel: 0,
+        baseStats: { power: 380, torque: 480, weight: 1120, grip: 80 },
+        upgradeModifiers: { powerBonus: 0, torqueBonus: 0, weightReduction: 0, gripBonus: 0 },
+        finalStats: { power: 380, torque: 480, weight: 1120, grip: 80 },
+        equippedParts: { engine: null, tires: null },
+        physics: { mass: 1120, dragCd: 0.35, frontalArea: 2.1, tireRadius: 0.34, finalDrive: 3.20, gearRatios:[2.50, 2.07, 1.69, 1.38, 1.18, 1.04], maxRPM: 8000, idleRPM: 900 }
+    }
+];
+
+const MAX_STATS = { power: 800, torque: 1000, weight: 2000, grip: 150 };
+
+function recalculateFinalStats(carIndex) {
+    let car = carsData[carIndex];
+    car.finalStats.power = Math.round(Math.min(MAX_STATS.power, car.baseStats.power + car.upgradeModifiers.powerBonus));
+    car.finalStats.torque = Math.round(Math.min(MAX_STATS.torque, car.baseStats.torque + car.upgradeModifiers.torqueBonus));
+    car.finalStats.weight = Math.round(Math.min(MAX_STATS.weight, Math.max(500, car.baseStats.weight - car.upgradeModifiers.weightReduction)));
+    car.finalStats.grip = Math.round(Math.min(MAX_STATS.grip, car.baseStats.grip + car.upgradeModifiers.gripBonus));
+}
+
+function getPreviewStats(carIndex) {
+    let car = carsData[carIndex];
+    if (!previewPart) return { ...car.finalStats };
+
+    let pCat = previewPart.category;
+    let pId = previewPart.id;
+    let partDef = PARTS_CATALOG[pCat].find(p => p.id === pId);
+
+    if (!partDef || car.currentBuildLevel < partDef.req) return { ...car.finalStats };
+    if (car.equippedParts[pCat] === pId) return { ...car.finalStats };
+
+    let previewMods = { 
+        powerBonus: car.upgradeModifiers.powerBonus, 
+        torqueBonus: car.upgradeModifiers.torqueBonus, 
+        weightReduction: car.upgradeModifiers.weightReduction, 
+        gripBonus: car.upgradeModifiers.gripBonus 
+    };
+
+    if (car.equippedParts[pCat]) {
+        let oldPart = PARTS_CATALOG[pCat].find(p => p.id === car.equippedParts[pCat]);
+        if (oldPart) {
+            previewMods.powerBonus -= (oldPart.mods.powerBonus || 0);
+            previewMods.torqueBonus -= (oldPart.mods.torqueBonus || 0);
+            previewMods.weightReduction -= (oldPart.mods.weightReduction || 0);
+            previewMods.gripBonus -= (oldPart.mods.gripBonus || 0);
+        }
+    }
+
+    previewMods.powerBonus += (partDef.mods.powerBonus || 0);
+    previewMods.torqueBonus += (partDef.mods.torqueBonus || 0);
+    previewMods.weightReduction += (partDef.mods.weightReduction || 0);
+    previewMods.gripBonus += (partDef.mods.gripBonus || 0);
+
+    return {
+        power: Math.round(Math.min(MAX_STATS.power, car.baseStats.power + previewMods.powerBonus)),
+        torque: Math.round(Math.min(MAX_STATS.torque, car.baseStats.torque + previewMods.torqueBonus)),
+        weight: Math.round(Math.min(MAX_STATS.weight, Math.max(500, car.baseStats.weight - previewMods.weightReduction))),
+        grip: Math.round(Math.min(MAX_STATS.grip, car.baseStats.grip + previewMods.gripBonus))
+    };
+}
+
+function updateStatsChart() {
+    let panel = document.getElementById('statsPanel');
+    if(!panel) return;
+
+    if(garageView !== 'info' && garageView !== 'engine') {
+        panel.style.display = 'none';
+        return;
+    }
+    
+    panel.style.display = 'block';
+    let car = carsData[selectedCarIndex];
+    let pStats = getPreviewStats(selectedCarIndex);
+    
+    let currentPI = calculatePI(car.finalStats);
+    let previewPI = calculatePI(pStats);
+    let previewClass = getCarClass(previewPI);
+    let classColor = getClassColor(previewClass);
+
+    let piDiff = previewPI - currentPI;
+    let piDiffStr = piDiff === 0 ? '' : (piDiff > 0 ? `(+${piDiff})` : `(${piDiff})`);
+    let piColorClass = piDiff > 0 ? 'color: #2ecc71;' : (piDiff < 0 ? 'color: #e74c3c;' : 'color: #aaa;');
+
+    let html = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(0,0,0,0.6); padding: 8px 12px; border-left: 5px solid ${classColor}; border-radius: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+        <div style="font-weight: 900; font-style: italic; color: #fff; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Índice de Performance</div>
+        <div style="font-family: monospace; font-size: 20px; font-weight: 900; color: ${classColor}; text-shadow: 0 0 10px ${classColor}88;">
+            ${previewPI} <span style="${piColorClass} font-size: 13px; text-shadow: none;">${piDiffStr}</span>
+            <span style="background: ${classColor}; color: #000; padding: 2px 8px; border-radius: 3px; margin-left: 8px; font-style: italic; font-size: 16px; text-shadow: none;">${previewClass}</span>
+        </div>
+    </div>
+    <div class="stats-container">`;
+    
+    const makeBar = (label, current, preview, max, isWeight) => {
+        let diff = preview - current;
+        let diffStr = diff === 0 ? '-' : (diff > 0 ? '+' + diff : diff);
+        
+        let colorClass = 'diff-neutral';
+        let previewColor = 'transparent';
+        
+        if (diff !== 0) {
+            let isBetter = isWeight ? (diff < 0) : (diff > 0);
+            colorClass = isBetter ? 'diff-positive' : 'diff-negative';
+            previewColor = isBetter ? '#2ecc71' : '#e74c3c';
+        }
+        
+        let currentPct = Math.min(100, Math.max(0, (current / max) * 100));
+        let previewPct = Math.min(100, Math.max(0, (preview / max) * 100));
+        let minPct = Math.min(currentPct, previewPct);
+        let diffPct = Math.abs(previewPct - currentPct);
+        
+        return `
+        <div class="stat-row">
+            <div class="stat-label">${label}</div>
+            <div class="stat-bar-bg">
+                <div class="stat-bar-fill" style="width: ${minPct}%;"></div>
+                <div class="stat-bar-preview" style="left: ${minPct}%; width: ${diffPct}%; background: ${previewColor};"></div>
+            </div>
+            <div class="stat-value">${preview}</div>
+            <div class="stat-diff ${colorClass}">${diffStr}</div>
+        </div>`;
+    };
+
+    html += makeBar('POTÊNCIA', car.finalStats.power, pStats.power, MAX_STATS.power, false);
+    html += makeBar('TORQUE', car.finalStats.torque, pStats.torque, MAX_STATS.torque, false);
+    html += makeBar('PESO (KG)', car.finalStats.weight, pStats.weight, MAX_STATS.weight, true);
+    html += makeBar('ADERÊNCIA', car.finalStats.grip, pStats.grip, MAX_STATS.grip, false);
+    
+    html += '</div>';
+    panel.innerHTML = html;
+}
+
+function quickEquip(category, id) {
+    let car = carsData[selectedCarIndex];
+    if (car.equippedParts[category] === id) return;
+    
+    let partList = PARTS_CATALOG[category];
+    let newPart = partList.find(p => p.id === id);
+    if(!newPart) return;
+    
+    if(car.equippedParts[category]) {
+        let oldPart = partList.find(p => p.id === car.equippedParts[category]);
+        if(oldPart) {
+            car.upgradeModifiers.powerBonus -= (oldPart.mods.powerBonus || 0);
+            car.upgradeModifiers.torqueBonus -= (oldPart.mods.torqueBonus || 0);
+            car.upgradeModifiers.weightReduction -= (oldPart.mods.weightReduction || 0);
+            car.upgradeModifiers.gripBonus -= (oldPart.mods.gripBonus || 0);
+        }
+    }
+
+    car.upgradeModifiers.powerBonus += (newPart.mods.powerBonus || 0);
+    car.upgradeModifiers.torqueBonus += (newPart.mods.torqueBonus || 0);
+    car.upgradeModifiers.weightReduction += (newPart.mods.weightReduction || 0);
+    car.upgradeModifiers.gripBonus += (newPart.mods.gripBonus || 0);
+    car.equippedParts[category] = id;
+
+    recalculateFinalStats(selectedCarIndex);
+    
+    if(category === 'engine') gameCar.installedTurbo = true;
+    
+    if(audioCtx) playShiftSound();
+    
+    let savedPreview = previewPart;
+    renderGarageInfo(); 
+    previewPart = savedPreview;
+    updateStatsChart();
+}
+
+
+// ----------------------------------------------------
+// UI E EVENTOS
+// ----------------------------------------------------
+let bindings = { accel: { key: 'w', gpBtn: 7 }, brake: { key: 's', gpBtn: 6 }, left: { key: 'a', gpAxis: 0, gpAxisDir: -1 }, right: { key: 'd', gpAxis: 0, gpAxisDir: 1 }, handbrake: { key: ' ', gpBtn: 0 }, shiftUp: { key: 'e', gpBtn: 5 }, shiftDown: { key: 'q', gpBtn: 4 }, padType: 'xbox', manualShift: false };
+if (localStorage.getItem('turbonout_controls')) bindings = JSON.parse(localStorage.getItem('turbonout_controls'));
+if(!bindings.padType) bindings.padType = 'xbox'; 
+
+const PAD_LABELS = {
+    xbox: { 0:'A', 1:'B', 2:'X', 3:'Y', 4:'LB', 5:'RB', 6:'LT', 7:'RT', 8:'Ver', 9:'Menu', 10:'L3', 11:'R3', 12:'Cima', 13:'Baixo', 14:'Esq', 15:'Dir' },
+    ps: { 0:'Cruz', 1:'Círculo', 2:'Quadrado', 3:'Triângulo', 4:'L1', 5:'R1', 6:'L2', 7:'R2', 8:'Share', 9:'Options', 10:'L3', 11:'R3', 12:'Cima', 13:'Baixo', 14:'Esq', 15:'Dir' }
+};
+
+let keys = {}; let waitingForKey = null; let bindTimeout = null;
+let mappingBlacklistKeys = new Set(); let mappingBlacklistBtns = new Set(); let mappingBlacklistAxes = new Set();
+
+window.addEventListener('keydown', e => { 
+    let k = e.key.toLowerCase();
+    if(waitingForKey) { 
+        if(mappingBlacklistKeys.has(k)) return; 
+        if(k === 'escape') cancelWait(); 
+        else { bindings[waitingForKey].key = k; cancelWait(); } 
+    } else keys[k] = true; 
+});
+window.addEventListener('keyup', e => { 
+    let k = e.key.toLowerCase();
+    mappingBlacklistKeys.delete(k);
+    if(!waitingForKey) keys[k] = false; 
+});
+
+function formatBinding(b) {
+    let parts =[]; if(b.key) parts.push(b.key === ' ' ? 'ESPAÇO' : b.key.toUpperCase());
+    if(b.gpBtn !== undefined) parts.push(PAD_LABELS[bindings.padType][b.gpBtn] || `Btn ${b.gpBtn}`);
+    if(b.gpAxis !== undefined) parts.push(`Eixo ${b.gpAxis} ${b.gpAxisDir>0?'+':'-'}`);
+    return parts.join(' / ') || 'NENHUM';
+}
+function getInputValue(action) {
+    let b = bindings[action]; let val = 0; if (b.key && keys[b.key.toLowerCase()]) val = 1;
+    let gamepads = navigator.getGamepads ? navigator.getGamepads() :[]; let gp = null;
+    for (let i=0; i<gamepads.length; i++) { if (gamepads[i] && gamepads[i].connected) { gp = gamepads[i]; break; } }
+    if (gp) { if (b.gpBtn !== undefined && gp.buttons[b.gpBtn]) val = Math.max(val, gp.buttons[b.gpBtn].value); if (b.gpAxis !== undefined) { let aVal = gp.axes[b.gpAxis]; if (b.gpAxisDir === 1 && aVal > 0.15) val = Math.max(val, aVal); if (b.gpAxisDir === -1 && aVal < -0.15) val = Math.max(val, Math.abs(aVal)); } }
+    return val;
+}
+function openSettings() { showScreen('settingsMenu'); renderControls(); }
+
+function waitForKey(key) { 
+    waitingForKey = key; 
+    renderControls(); 
+    clearTimeout(bindTimeout); 
+    
+    mappingBlacklistKeys.clear();
+    for (let k in keys) { if (keys[k]) mappingBlacklistKeys.add(k); }
+    
+    mappingBlacklistBtns.clear(); mappingBlacklistAxes.clear();
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() :[]; 
+    let gp = null;
+    for (let i = 0; i < gamepads.length; i++) { if (gamepads[i] && gamepads[i].connected) { gp = gamepads[i]; break; } }
+    if (gp) {
+        gp.buttons.forEach((b, i) => { if (b && b.pressed) mappingBlacklistBtns.add(i); });
+        gp.axes.forEach((a, i) => { if (Math.abs(a) > 0.5) mappingBlacklistAxes.add(i); });
+    }
+    bindTimeout = setTimeout(() => { cancelWait(); }, 5000); 
+}
+
+function cancelWait() { waitingForKey = null; clearTimeout(bindTimeout); renderControls(); saveSettings(); }
+function saveSettings() { localStorage.setItem('turbonout_controls', JSON.stringify(bindings)); }
+function renderControls() {
+    const container = document.getElementById('controlsList');
+    const labels = { accel: 'Acelerar (Torque)', brake: 'Frear', left: 'Direção Esquerda', right: 'Direção Direita', handbrake: 'Freio de Mão', shiftUp: 'Marchar Acima', shiftDown: 'Marchar Abaixo' };
+    container.innerHTML = Object.keys(bindings).filter(k=>!['manualShift','padType'].includes(k)).map(key => `
+        <div style="display:flex; justify-content:space-between; background:rgba(255,255,255,0.05); padding:10px 15px; align-items:center; border-radius:4px; border: 1px solid rgba(255,255,255,0.1);">
+            <span style="font-weight:bold;">${labels[key]}</span>
+            <button class="menu-btn nav-item" style="width:250px; padding:8px 25px; border-left-color:${waitingForKey===key?'#f1c40f':'#3498db'}; font-size:14px; transform:skewX(-10deg);" onclick="waitForKey('${key}')" onmouseover="setNavIndex(this)"><span>${waitingForKey === key ? 'AGUARDANDO INPUT (5s)...' : formatBinding(bindings[key])}</span></button>
+        </div>`).join('');
+    
+    let chk = document.getElementById('manualShiftCheck');
+    if(chk) chk.checked = !!bindings.manualShift;
+    
+    setTimeout(refreshNav, 50);
+}
+
+// ----------------------------------------------------
+// FÍSICA CONECTADA AOS UPGRADES
+// ----------------------------------------------------
+
+function getEngineTorque(carType, rpm, activeTorque, baseTorque) {
+    let baseTq = 0;
+    if(carType === 'miata-body') {
+        if(rpm < 2000) baseTq = 90 + (rpm/2000)*30;
+        else if(rpm < 5000) baseTq = 120 + ((rpm-2000)/3000)*30;
+        else baseTq = 150 - ((rpm-5000)/2200)*25;
+    } else if(carType === 'skyline-body') {
+        if(rpm < 3000) baseTq = 180 + (rpm/3000)*100;
+        else if(rpm < 4400) baseTq = 280 + ((rpm-3000)/1400)*112;
+        else baseTq = 392 - ((rpm-4400)/3600)*60;
+    } else {
+        if(rpm < 3000) baseTq = 300 + (rpm/3000)*180;
+        else if(rpm < 7000) baseTq = 480;
+        else baseTq = 480 - ((rpm-7000)/1000)*40;
+    }
+    return baseTq * (activeTorque / baseTorque);
+}
+
+let audioCtx; let engineOsc, engineOsc2, engineGain, turboSpoolOsc, turboSpoolGain, turboVibrato, turboAirNoise, turboAirGain, noiseBuffer; 
+let gearOsc1, gearOsc2, gearOsc3, gearGain, gearFilter, smoothedShaftRPM = 0, gearVibrato, gearVibratoGain, lastShiftTime = 0; 
+function initAudio() {
+    if (audioCtx) return; audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    engineOsc = audioCtx.createOscillator(); engineOsc.type = 'sawtooth'; engineOsc2 = audioCtx.createOscillator(); engineOsc2.type = 'square';
+    const engine2Gain = audioCtx.createGain(); engine2Gain.gain.value = 0.3; engineGain = audioCtx.createGain(); engineGain.gain.value = 0;
+    const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 900;
+    engineOsc.connect(filter); engineOsc2.connect(engine2Gain); engine2Gain.connect(filter); filter.connect(engineGain); engineGain.connect(audioCtx.destination); engineOsc.start(); engineOsc2.start();
+    
+    turboSpoolOsc = audioCtx.createOscillator(); turboSpoolOsc.type = 'sine'; turboVibrato = audioCtx.createOscillator(); turboVibrato.frequency.value = 25;
+    const vibratoGain = audioCtx.createGain(); vibratoGain.gain.value = 15; turboVibrato.connect(vibratoGain); vibratoGain.connect(turboSpoolOsc.frequency); turboVibrato.start();
+    turboSpoolGain = audioCtx.createGain(); turboSpoolGain.gain.value = 0; const turboFilter = audioCtx.createBiquadFilter(); turboFilter.type = 'highpass'; turboFilter.frequency.value = 1800;
+    turboSpoolOsc.connect(turboFilter); turboFilter.connect(turboSpoolGain); turboSpoolGain.connect(audioCtx.destination); turboSpoolOsc.start();
+    
+    const bufferSize = audioCtx.sampleRate * 2; noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate); const noiseData = noiseBuffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) noiseData[i] = Math.random() * 2 - 1;
+    turboAirNoise = audioCtx.createBufferSource(); turboAirNoise.buffer = noiseBuffer; turboAirNoise.loop = true; turboAirGain = audioCtx.createGain(); turboAirGain.gain.value = 0;
+    const airFilter = audioCtx.createBiquadFilter(); airFilter.type = 'bandpass'; airFilter.frequency.value = 4000; airFilter.Q.value = 0.5;
+    turboAirNoise.connect(airFilter); airFilter.connect(turboAirGain); turboAirGain.connect(audioCtx.destination); turboAirNoise.start();
+
+    gearOsc1 = audioCtx.createOscillator(); gearOsc1.type = 'sawtooth'; gearOsc2 = audioCtx.createOscillator(); gearOsc2.type = 'square'; gearOsc3 = audioCtx.createOscillator(); gearOsc3.type = 'sawtooth';
+    gearFilter = audioCtx.createBiquadFilter(); gearFilter.type = 'bandpass'; gearFilter.Q.value = 6.0; gearGain = audioCtx.createGain(); gearGain.gain.value = 0;
+    gearOsc1.connect(gearFilter); gearOsc2.connect(gearFilter); gearOsc3.connect(gearFilter); gearFilter.connect(gearGain); gearGain.connect(audioCtx.destination); gearOsc1.start(); gearOsc2.start(); gearOsc3.start();
+    gearVibrato = audioCtx.createOscillator(); gearVibrato.type = 'sine'; gearVibrato.frequency.value = 30; gearVibratoGain = audioCtx.createGain(); gearVibratoGain.gain.value = 0; 
+    gearVibrato.connect(gearVibratoGain); gearVibratoGain.connect(gearOsc1.frequency); gearVibratoGain.connect(gearOsc2.frequency); gearVibratoGain.connect(gearOsc3.frequency); gearVibrato.start();
+}
+function playShiftSound() {
+    if (!audioCtx) return; const now = audioCtx.currentTime; const osc = audioCtx.createOscillator(); const g = audioCtx.createGain(); osc.type = 'square';
+    osc.frequency.setValueAtTime(140, now); osc.frequency.exponentialRampToValueAtTime(30, now + 0.08); g.gain.setValueAtTime(0.06, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(g); g.connect(audioCtx.destination); osc.start(); osc.stop(now + 0.08);
+}
+let lastAccelState = false;
+function updateAudio() {
+    if (!audioCtx || !isPlaying) return;
+    const accel = getInputValue('accel') > 0.1; const rpm = gameCar.currentRPM; 
+    const timeSinceShift = performance.now() - lastShiftTime; const isShifting = timeSinceShift < 80; const shiftVolumeMult = isShifting ? 0.25 : 1.0; 
+    let baseFreq = gameCar.type === 'miata-body' ? 32 : (gameCar.type === 'bmw-body' ? 45 : 26);
+    let freqMult = gameCar.type === 'miata-body' ? 85 : (gameCar.type === 'bmw-body' ? 140 : 105);
+    engineOsc.frequency.setTargetAtTime(baseFreq + (rpm * freqMult), audioCtx.currentTime, 0.05); engineOsc2.frequency.setTargetAtTime((baseFreq + (rpm * freqMult)) * (gameCar.type==='bmw-body'?0.25:0.5), audioCtx.currentTime, 0.05);
+    engineGain.gain.setTargetAtTime((0.08 + (accel ? 0.12 : 0) + (rpm * 0.08)) * shiftVolumeMult, audioCtx.currentTime, isShifting ? 0.02 : 0.1);
+
+    if (gameCar.installedTurbo) {
+        if (accel && rpm > 0.35) {
+            const boost = Math.pow(rpm, 2.2); turboSpoolOsc.frequency.setTargetAtTime(1200 + (rpm * 7000), audioCtx.currentTime, 0.1);
+            turboSpoolGain.gain.setTargetAtTime(boost * 0.22, audioCtx.currentTime, 0.2); turboAirGain.gain.setTargetAtTime(boost * 0.15, audioCtx.currentTime, 0.25);
+            turboVibrato.frequency.setTargetAtTime(20 + rpm * 40, audioCtx.currentTime, 0.1);
+        } else { turboSpoolGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.4); turboAirGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5); }
+    }
+    if (gameCar.type === 'bmw-body' && gearGain && gameCar.physics) {
+        let v_m_s = Math.abs(gameCar.speed) * (15 / 3.6); smoothedShaftRPM += (((v_m_s / (2 * Math.PI * gameCar.physics.tireRadius)) * 60) * gameCar.physics.finalDrive - smoothedShaftRPM) * 0.15; 
+        const baseGearFreq = 180 + (smoothedShaftRPM * 0.4); let t = timeSinceShift / 1000; let screamMultiplier = 1.0; let isTorqueCut = t < 0.08; let extraGainMult = 1.0; 
+        if (t >= 0.08 && t < 0.41) { let engageT = t - 0.08; screamMultiplier = 1.0 + Math.cos(engageT * 100) * 0.10 * Math.exp(-engageT * 8); if (engageT < 0.08) extraGainMult = 1.0 + (0.20 * (1 - (engageT / 0.08))); }
+        const finalFreq = baseGearFreq * screamMultiplier;
+        gearOsc1.frequency.setTargetAtTime(finalFreq, audioCtx.currentTime, 0.01); gearOsc2.frequency.setTargetAtTime(finalFreq * 1.5, audioCtx.currentTime, 0.01); gearOsc3.frequency.setTargetAtTime(finalFreq * 2.1, audioCtx.currentTime, 0.01);
+        gearFilter.frequency.setTargetAtTime(Math.min(finalFreq * 1.8, 8000), audioCtx.currentTime, 0.02); gearVibratoGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+        gearGain.gain.setTargetAtTime((isTorqueCut ? 0.04 : (accel ? 0.35 * extraGainMult : (v_m_s > 8 ? 0.18 * extraGainMult : 0))) * Math.min(v_m_s / 5, 1.0), audioCtx.currentTime, isTorqueCut ? 0.01 : 0.03);
+    } else if (gearGain) gearGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+    lastAccelState = accel;
+}
+
+
+let selectedCarIndex = 0; let isPlaying = false; let isSwitching = false; let garageView = 'info'; 
+const gameCar = { 
+    x: 0, y: 0, width: 40, height: 80, angle: 0, speed: 0, friction: 0.04, vx: 0, vy: 0, angularVel: 0, 
+    skidmarks:[], particles:[], gX: 0, gY: 0, mainColor: '#ffffff', darkColor: '#cccccc', type: 'miata-body', 
+    currentGear: 1, currentRPM: 0, decals:[], driftFactor: 0.15, physics: null, installedTurbo: false, 
+    
+    activeStats: { power: 140, torque: 150, weight: 1050, grip: 50 },
+    baseStats: { power: 140, torque: 150, weight: 1050, grip: 50 }
+};
+
+function showScreen(id) { 
+    Object.values(screens).forEach(s => s.classList.add('hidden')); 
+    screens[id].classList.remove('hidden'); 
+    isPlaying = (id === 'gameUI'); 
+    canvas.style.filter = isPlaying ? 'none' : 'blur(10px)'; 
+    if(id === 'garageMenu') { garageView = 'info'; updateGarageDisplay(true); } 
+    if(!isPlaying && engineGain) engineGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5); 
+    navIndex = 0;
+    setTimeout(refreshNav, 100);
+}
+
+function switchGarageView(newView) { 
+    const infoContent = document.getElementById('carInfo'); 
+    infoContent.classList.add('view-switching'); 
+    setTimeout(() => { 
+        garageView = newView; 
+        renderGarageInfo(); 
+        infoContent.classList.remove('view-switching'); 
+    }, 300); 
+}
+
+function changeColor(main, dark) { carsData[selectedCarIndex].color = main; carsData[selectedCarIndex].darkColor = dark; updateGarageDisplay(true); }
+function addDecal(value) { carsData[selectedCarIndex].decals.push({ value: value, x: 0, y: 0, scale: 1, angle: 0, skewX: 0, skewY: 0, color: '#e74c3c' }); garageView = 'decal-edit'; updateGarageDisplay(true); }
+
+function upgradeBuildLevel() {
+    if (carsData[selectedCarIndex].currentBuildLevel < 4) {
+        carsData[selectedCarIndex].currentBuildLevel++;
+        renderGarageInfo();
+    }
+}
+
+function renderGarageInfo() {
+    const car = carsData[selectedCarIndex]; const info = document.getElementById('carInfo'); 
+    
+    let currentPI = calculatePI(car.finalStats);
+    let carClass = getCarClass(currentPI);
+    let classColor = getClassColor(carClass);
+    
+    if (garageView === 'info') {
+        info.innerHTML = `
+            <div class="car-name-title" style="color: ${car.color}">${car.name}</div>
+            <div style="color: #ccc; font-weight: 800; margin-bottom: 15px; font-style: italic; letter-spacing: 1px; font-size: 14px;">${car.subtitle}</div>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; align-items: stretch;">
+                <div style="background: ${classColor}; color: #000; font-weight: 900; font-size: 32px; padding: 5px 20px; border-radius: 4px; font-style: italic; box-shadow: 0 0 15px ${classColor}66; display: flex; align-items: center; justify-content: center;">
+                    ${carClass}
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center; background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 4px; border-left: 3px solid ${classColor};">
+                    <div style="font-size: 10px; color: #aaa; font-weight: 900; letter-spacing: 1px;">PERFORMANCE INDEX</div>
+                    <div style="color: #fff; font-weight: 900; font-size: 24px; font-family: monospace;">
+                        ${currentPI}
+                    </div>
+                </div>
+            </div>
+            
+            <p style="font-size: 13px; color: #ccc; line-height: 1.6; font-style: italic; margin-top: 0;">${car.desc}</p>
+            <div style="margin-top: 25px; display: flex; flex-direction: column; gap: 10px;">
+                <button class="menu-btn nav-item" style="width: 100%; border-left-color: #f1c40f;" onclick="startGame()" onmouseover="setNavIndex(this)"><span>SELECIONAR E CORRER</span></button>
+                <button class="menu-btn nav-item" style="width: 100%; border-left-color: #3498db;" onclick="switchGarageView('categories')" onmouseover="setNavIndex(this)"><span>CUSTOMIZAR</span></button>
+            </div>`;
+    } 
+    else if (garageView === 'categories') {
+        info.innerHTML = `<div class="car-name-title">CUSTOMIZAÇÃO</div><div class="custom-grid"><div class="custom-card nav-item" onclick="switchGarageView('paint')" onmouseover="setNavIndex(this)">${ICONS.paint}<span>Pintura</span></div><div class="custom-card nav-item" onclick="switchGarageView('decals')" onmouseover="setNavIndex(this)">${ICONS.decals}<span>Adesivos</span></div><div class="custom-card nav-item" onclick="switchGarageView('engine')" onmouseover="setNavIndex(this)">${ICONS.engine}<span>Motor & Pneus</span></div></div>`;
+    }
+    else if (garageView === 'paint') {
+        info.innerHTML = `<div class="car-name-title">PINTURA</div><div class="color-grid">${PALETTE.map(c => `<div class="swatch nav-item" style="background:${c};" onclick="changeColor('${c}', darkenColor('${c}', 40))" onmouseover="setNavIndex(this)"></div>`).join('')}</div>`;
+    }
+    else if (garageView === 'decals') {
+        info.innerHTML = `<div class="car-name-title">ADESIVOS</div><div class="custom-grid"><div class="custom-card nav-item" onclick="switchGarageView('decal-shapes')" onmouseover="setNavIndex(this)"><span>Formas</span></div><div class="custom-card nav-item" onclick="switchGarageView('decal-lines')" onmouseover="setNavIndex(this)"><span>Linhas</span></div><div class="custom-card nav-item" onclick="switchGarageView('decal-letters')" onmouseover="setNavIndex(this)"><span>Letras</span></div></div>`;
+    }
+    else if (garageView.startsWith('decal-') && garageView !== 'decal-edit') {
+        const type = garageView.split('-')[1]; let items =[];
+        if(type === 'shapes') items =['★','♥','●','▲','■','◆','▼','✦','✖','✔'];
+        if(type === 'lines') items =['|','--','\\','//','[',']','{','}'];
+        if(type === 'letters') items = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+        info.innerHTML = `<div class="car-name-title">ESCOLHER</div><div class="color-grid">${items.map(i => `<div class="custom-card nav-item" style="padding:5px; font-size:18px; font-weight:900;" onclick="addDecal('${i}')" onmouseover="setNavIndex(this)">${i}</div>`).join('')}</div>`;
+    }
+    else if (garageView === 'decal-edit') {
+        info.innerHTML = `
+            <div class="car-name-title" style="font-size:30px; margin-bottom:10px;">EDITOR (WASD)</div>
+            <div style="font-size:12px; color:#aaa; margin-bottom:5px;">COR DO ADESIVO:</div>
+            <div class="color-grid" style="margin-bottom: 20px;">${PALETTE.map(c => `<div class="swatch nav-item" style="background:${c}; height:25px;" onclick="setDecalColor('${c}')" onmouseover="setNavIndex(this)"></div>`).join('')}</div>
+            <button class="menu-btn nav-item" style="width: 100%; border-left-color: #2ecc71;" onclick="switchGarageView('decals')" onmouseover="setNavIndex(this)"><span>CONFIRMAR</span></button>
+            <button class="menu-btn nav-item" style="width: 100%; margin-top: 10px; border-left-color: #e74c3c; font-size:16px; padding: 5px 40px;" onclick="deleteDecal()" onmouseover="setNavIndex(this)"><span>APAGAR ADESIVO</span></button>
+        `;
+    }
+    else if (garageView === 'engine') {
+        const BUILD_LEVEL_NAMES =["Estoque", "Rua", "Esporte", "Corrida", "Corrida Pro"];
+        if(car.currentBuildLevel === undefined) car.currentBuildLevel = 0;
+
+        let engineHtml = PARTS_CATALOG.engine.map(t => {
+            let locked = car.currentBuildLevel < t.req;
+            let isEquipped = car.equippedParts.engine === t.id;
+            return `<div class="custom-card ${!locked?'nav-item':''} ${isEquipped ? 'selected' : ''}" 
+                         ${!locked ? `data-part-category="engine" data-part-id="${t.id}" onclick="quickEquip('engine', '${t.id}')" onmouseover="setNavIndex(this)"` : ''} 
+                         style="${locked ? 'opacity:0.4; cursor:not-allowed;' : (isEquipped ? 'border-color: #2ecc71;' : '')}">
+                        ${t.icon}<span>${t.name}</span>
+                        ${locked ? `<div style="font-size:10px; color:#e74c3c; font-weight:bold;">REQ: ${BUILD_LEVEL_NAMES[t.req].toUpperCase()}</div>` : ''}
+                        ${isEquipped ? `<div style="font-size:10px; color:#2ecc71; font-weight:bold;">EQUIPADO</div>` : ''}
+                    </div>`;
+        }).join('');
+
+        let tiresHtml = PARTS_CATALOG.tires.map(t => {
+            let locked = car.currentBuildLevel < t.req;
+            let isEquipped = car.equippedParts.tires === t.id;
+            return `<div class="custom-card ${!locked?'nav-item':''} ${isEquipped ? 'selected' : ''}" 
+                         ${!locked ? `data-part-category="tires" data-part-id="${t.id}" onclick="quickEquip('tires', '${t.id}')" onmouseover="setNavIndex(this)"` : ''} 
+                         style="${locked ? 'opacity:0.4; cursor:not-allowed;' : (isEquipped ? 'border-color: #2ecc71;' : '')}">
+                        ${t.icon}<span>${t.name}</span>
+                        ${locked ? `<div style="font-size:10px; color:#e74c3c; font-weight:bold;">REQ: ${BUILD_LEVEL_NAMES[t.req].toUpperCase()}</div>` : ''}
+                        ${isEquipped ? `<div style="font-size:10px; color:#2ecc71; font-weight:bold;">EQUIPADO</div>` : ''}
+                    </div>`;
+        }).join('');
+        
+        info.innerHTML = `
+            <div class="car-name-title" style="font-size:32px;">PERFORMANCE</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:10px; border-radius:4px; margin-bottom:15px; border-left: 4px solid #f1c40f;">
+                <div style="font-weight:900; font-style:italic; font-size:16px; color:#fff;">BUILD: <span style="color:#f1c40f;">${BUILD_LEVEL_NAMES[car.currentBuildLevel].toUpperCase()}</span></div>
+                ${car.currentBuildLevel < 4 ? `<button class="menu-btn nav-item" style="width:auto; padding:5px 15px; font-size:12px; margin:0;" onclick="upgradeBuildLevel()" onmouseover="setNavIndex(this)"><span>UPGRADE BUILD</span></button>` : '<span style="font-size:12px; color:#2ecc71; font-weight:bold;">MÁXIMO</span>'}
+            </div>
+            <div style="font-size:12px; color:#aaa; margin-top:5px; margin-bottom:5px;">TURBO COMPRESSOR</div>
+            <div class="custom-grid" style="margin-top:0;">${engineHtml}</div>
+            <div style="font-size:12px; color:#aaa; margin-top:15px; margin-bottom:5px;">PNEUS (COMPOSTO)</div>
+            <div class="custom-grid" style="margin-top:0;">${tiresHtml}</div>
+            <div style="margin-bottom: 20px;"></div>`;
+    }
+    
+    setTimeout(refreshNav, 50);
+}
+
+function updateGarageDisplay(immediate = false) {
+    const car = carsData[selectedCarIndex]; const displayWrapper = document.getElementById('garageCarDisplay'); const infoBox = document.getElementById('infoBox');
+    const renderCar = () => {
+        const lightClass = car.style === 'miata-body' ? 'light-miata' : (car.style === 'skyline-body' ? 'light-skyline' : 'light-bmw');
+        let extraHTML = car.style === 'skyline-body' ? '<div class="skyline-stripes"></div>' : (car.style === 'bmw-body' ? '<div class="bmw-stripes"></div><div class="bmw-wing"></div>' : '');
+        let decalsHTML = car.decals.map(d => `<div style="position:absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) translate(${d.x}px, ${d.y}px) rotate(${d.angle}deg) scale(${d.scale}) skew(${d.skewX}deg, ${d.skewY}deg); color: ${d.color}; font-weight:900; font-size:24px; pointer-events:none; z-index:10; white-space:nowrap;">${d.value}</div>`).join('');
+        displayWrapper.innerHTML = `<div class="${car.style}" style="background: linear-gradient(to right, ${car.darkColor}, ${car.color}, ${car.darkColor});">${extraHTML}${decalsHTML}<div class="car-lights-container"><div class="${lightClass}"></div><div class="${lightClass}"></div></div></div>`;
+        renderGarageInfo();
+        
+        Object.assign(gameCar, { 
+            type: car.style, width: car.style === 'miata-body' ? 40 : (car.style === 'bmw-body' ? 46 : 44), height: car.style === 'miata-body' ? 80 : (car.style === 'bmw-body' ? 90 : 88), physics: car.physics, driftFactor: car.drift, mainColor: car.color, darkColor: car.darkColor,
+            activeStats: { ...car.finalStats },
+            baseStats: { ...car.baseStats }
+        });
+        
+        displayWrapper.classList.remove('car-exiting'); displayWrapper.classList.add('car-entering'); infoBox.style.opacity = '1'; setTimeout(() => { isSwitching = false; }, 800);
+    };
+    if (immediate) renderCar(); else { isSwitching = true; displayWrapper.classList.remove('car-entering'); displayWrapper.classList.add('car-exiting'); infoBox.style.opacity = '0'; setTimeout(renderCar, 500); }
+}
+
+document.getElementById('garageContainer').addEventListener('wheel', (e) => { e.preventDefault(); if (isSwitching || garageView !== 'info') return; selectedCarIndex = e.deltaY > 0 ? (selectedCarIndex + 1) % carsData.length : (selectedCarIndex - 1 + carsData.length) % carsData.length; updateGarageDisplay(); });
+
+function startGame() { 
+    gameCar.activeStats = { ...carsData[selectedCarIndex].finalStats };
+    gameCar.baseStats = { ...carsData[selectedCarIndex].baseStats };
+    
+    let equipTires = carsData[selectedCarIndex].equippedParts.tires;
+    gameCar.installedTire = equipTires && equipTires.includes('slick') ? 'slick' : 'drift';
+
+    gameCar.decals = carsData[selectedCarIndex].decals; initAudio(); gameCar.x = canvas.width / 2; gameCar.y = canvas.height / 2; tirePhysics = { fl: {temp:20, wear:100}, fr: {temp:20, wear:100}, rl: {temp:20, wear:100}, rr: {temp:20, wear:100} }; showScreen('gameUI'); screens.gameUI.classList.add('visible'); 
+}
+
+function openGarage() { showScreen('garageMenu'); }
+function createGauge() { const face = document.getElementById('gaugeFace'); for (let i = 0; i <= 300; i += 10) { const mark = document.createElement('div'); mark.style.position = 'absolute'; mark.style.width = i % 50 === 0 ? '2px' : '1px'; mark.style.height = i % 50 === 0 ? '10px' : '6px'; mark.style.background = i >= 240 ? '#e74c3c' : 'rgba(255,255,255,0.4)'; mark.style.left = '50%'; mark.style.transformOrigin = '0 60px'; mark.style.transform = `rotate(${-120 + (i / 300) * 240}deg)`; face.appendChild(mark); } }
+createGauge();
+
+function processDecalEditor() {
+    if (isPlaying || garageView !== 'decal-edit' || carsData[selectedCarIndex].decals.length === 0) return;
+    let d = carsData[selectedCarIndex].decals[carsData[selectedCarIndex].decals.length - 1];
+    
+    let dxFast = (keys['d']?1:0) - (keys['a']?1:0); let dyFast = (keys['s']?1:0) - (keys['w']?1:0);
+    let dxSlow = (keys['arrowright']?1:0) - (keys['arrowleft']?1:0); let dySlow = (keys['arrowdown']?1:0) - (keys['arrowup']?1:0);
+    let gamepads = navigator.getGamepads ? navigator.getGamepads() :[]; let gp = gamepads[0];
+    if (gp) {
+        if(Math.abs(gp.axes[0]) > 0.15) dxFast += gp.axes[0]; if(Math.abs(gp.axes[1]) > 0.15) dyFast += gp.axes[1];
+        if(gp.buttons[15]?.pressed) dxSlow += 1; if(gp.buttons[14]?.pressed) dxSlow -= 1;
+        if(gp.buttons[13]?.pressed) dySlow += 1; if(gp.buttons[12]?.pressed) dySlow -= 1;
+    }
+    let fastSpd = 2; let slowSpd = 0.2; let deltaX = dxFast * fastSpd + dxSlow * slowSpd; let deltaY = dyFast * fastSpd + dySlow * slowSpd;
+
+    if (deltaX !== 0 || deltaY !== 0) {
+        d.x += deltaX; d.y += deltaY;
+        updateGarageDisplay(true);
+    }
+}
+
+function updateTransmission() {
+    if(!gameCar.physics) return;
+    let maxGears = gameCar.physics.gearRatios.length;
+    let upInput = getInputValue('shiftUp') > 0.5; let downInput = getInputValue('shiftDown') > 0.5;
+    if(upInput && !lastShiftUpPressed && gameCar.currentGear < maxGears) { gameCar.currentGear++; playShiftSound(); lastShiftTime = performance.now(); }
+    if(downInput && !lastShiftDownPressed && gameCar.currentGear > 1) { gameCar.currentGear--; playShiftSound(); lastShiftTime = performance.now(); }
+    lastShiftUpPressed = upInput; lastShiftDownPressed = downInput;
+
+    let v_m_s = Math.abs(gameCar.speed) * (15 / 3.6); 
+    let wheelRPM = (v_m_s / (2 * Math.PI * gameCar.physics.tireRadius)) * 60; 
+    let shaftRPM = wheelRPM * gameCar.physics.finalDrive; 
+    let engineRPM = shaftRPM * gameCar.physics.gearRatios[gameCar.currentGear - 1];
+    if (engineRPM < gameCar.physics.idleRPM && v_m_s < 1) engineRPM = gameCar.physics.idleRPM;
+
+    if(!bindings.manualShift) {
+        if (engineRPM > gameCar.physics.maxRPM * 0.95 && gameCar.currentGear < maxGears) { gameCar.currentGear++; playShiftSound(); lastShiftTime = performance.now(); }
+        else if (engineRPM < gameCar.physics.maxRPM * 0.6 && gameCar.currentGear > 1) { gameCar.currentGear--; playShiftSound(); lastShiftTime = performance.now(); }
+    }
+    gameCar.currentRPM = Math.max(0, Math.min(1.05, engineRPM / gameCar.physics.maxRPM)); 
+    document.getElementById('gearDisp').innerText = gameCar.currentGear;
+}
+
+function update() {
+    processDecalEditor();
+    if(!isPlaying || !gameCar.physics) return; 
+    updateTransmission(); updateAudio();
+    
+    const currentAccel = getInputValue('accel'); const currentBrake = getInputValue('brake'); const isHandbraking = getInputValue('handbrake') > 0.5;
+    let steerInput = getInputValue('right') - getInputValue('left');
+    document.getElementById('accelBar').style.height = (currentAccel * 100) + '%'; document.getElementById('brakeBar').style.height = (currentBrake * 100) + '%';
+
+    const oldVx = gameCar.vx; const oldVy = gameCar.vy;
+    const fvx = Math.cos(gameCar.angle) * gameCar.speed; 
+    const fvy = Math.sin(gameCar.angle) * gameCar.speed; 
+    let preDriftGap = Math.sqrt((fvx - gameCar.vx)**2 + (fvy - gameCar.vy)**2);
+
+    let v_m_s = gameCar.speed * (15 / 3.6); 
+    let wheelRPM = (Math.abs(v_m_s) / (2 * Math.PI * gameCar.physics.tireRadius)) * 60; 
+    let engineRPM = wheelRPM * gameCar.physics.finalDrive * gameCar.physics.gearRatios[gameCar.currentGear - 1]; 
+    let tractiveForce = 0;
+
+    let isSlick = (gameCar.installedTire === 'slick');
+    
+    let coolingAirflow = 0.01 + (Math.abs(v_m_s) * 0.0005);
+    if (preDriftGap < 0.5) coolingAirflow *= 2.0;
+
+    let heatGenFront = 0; let heatGenRear = 0;
+    if (currentBrake > 0 && Math.abs(gameCar.speed) > 2) { heatGenFront += currentBrake * 0.15; heatGenRear += currentBrake * 0.05; }
+    if (currentAccel > 0.8 && Math.abs(gameCar.speed) < 15) { heatGenRear += (15 - Math.abs(gameCar.speed)) * 0.02; }
+    if (preDriftGap > 0.5) { let slipHeat = (preDriftGap - 0.5) * 0.08; heatGenFront += slipHeat * 0.3; heatGenRear += slipHeat * 0.7; }
+
+    let heatResist = isSlick ? 0.6 : 1.0;
+    tirePhysics.fl.temp += heatGenFront * heatResist; tirePhysics.fr.temp += heatGenFront * heatResist;
+    tirePhysics.rl.temp += heatGenRear * heatResist; tirePhysics.rr.temp += heatGenRear * heatResist;
+
+    let criticalWear = false;['fl','fr','rl','rr'].forEach(t => { 
+        let tp = tirePhysics[t];
+        tp.temp -= (tp.temp - 20) * coolingAirflow;
+        if (tp.temp < 20) tp.temp = 20;
+        if (tp.temp > 120) tp.temp = 120;
+        
+        if(tp.temp > 90) tp.wear -= (tp.temp - 90) * 0.0003 * preDriftGap; 
+        if(tp.wear < 0) tp.wear = 0; if(tp.wear < 15) criticalWear = true;
+        
+        let visualTemp = tp.temp; 
+        document.getElementById('tire'+t.toUpperCase()).style.backgroundColor = visualTemp < 70 ? `rgb(${Math.floor(((visualTemp-20)/50)*255)},255,0)` : `rgb(255,${Math.floor(255-((visualTemp-70)/50)*255)},0)`; 
+        document.getElementById('wear'+t.toUpperCase()).style.height = tp.wear + '%';
+    });
+    document.getElementById('tireAlert').style.display = criticalWear ? 'block' : 'none';
+
+    let avgWearRear = (tirePhysics.rl.wear + tirePhysics.rr.wear) / 200;
+    let gripMult = (avgWearRear * 0.8) + 0.2; 
+    let driftIntensity;
+
+    let avgTempRear = (tirePhysics.rl.temp + tirePhysics.rr.temp) / 2;
+
+    let statGripMult = 1.0 + ((gameCar.activeStats.grip - gameCar.baseStats.grip) / 150);
+
+    if (isSlick) {
+        let tempMult = 1.0;
+        if (avgTempRear < 50) tempMult = 0.8 + (avgTempRear - 20) * (0.2 / 30);
+        else if (avgTempRear > 100) tempMult = 1.0 - (avgTempRear - 100) * (0.2 / 20);
+        
+        gripMult *= 1.3 * tempMult; 
+        
+        if (preDriftGap > 1.8) { 
+            gripMult *= 0.5; 
+            driftIntensity = 0.015; 
+        } else {
+            driftIntensity = 0.15; 
+        }
+
+        if (currentAccel > 0.8 && Math.abs(gameCar.speed) < 10) { 
+            gameCar.angularVel += (Math.random() - 0.5) * 0.015; 
+            gripMult *= 0.7; 
+        }
+    } else { 
+        gripMult *= 0.85; 
+        driftIntensity = 0.035; 
+    }
+
+    gripMult *= statGripMult;
+    driftIntensity *= (1.0 - ((gameCar.activeStats.grip - gameCar.baseStats.grip) / 300));
+
+    if (isHandbraking) { driftIntensity = 0.01; gripMult *= 0.6; }
+
+    if (currentAccel > 0) { 
+        if (engineRPM < gameCar.physics.maxRPM * 1.05) { 
+            let torque = getEngineTorque(gameCar.type, engineRPM, gameCar.activeStats.torque, gameCar.baseStats.torque);
+            tractiveForce = ((torque * gameCar.physics.gearRatios[gameCar.currentGear - 1] * gameCar.physics.finalDrive * 0.85) / gameCar.physics.tireRadius) * currentAccel * gripMult; 
+        } 
+    } else if (currentBrake > 0) tractiveForce = -12000 * currentBrake * gripMult; 
+    
+    let totalRes = (0.5 * 1.2 * gameCar.physics.dragCd * gameCar.physics.frontalArea * (v_m_s * v_m_s)) + (0.015 * gameCar.activeStats.weight * 9.81); 
+    if (gameCar.speed > 0) tractiveForce -= totalRes; else if (gameCar.speed < 0) tractiveForce += totalRes;
+    
+    v_m_s += (tractiveForce / gameCar.activeStats.weight) * (1 / 60); 
+    gameCar.speed = v_m_s / (15 / 3.6); if (gameCar.speed < -8) gameCar.speed = -8; 
+
+    if (Math.abs(gameCar.speed) > 0.5) gameCar.angularVel += steerInput * 0.0055 * (gameCar.speed > 0 ? 1 : -1) * (isHandbraking ? 1.8 : 1.0);
+    gameCar.angularVel *= 0.9; gameCar.angle += gameCar.angularVel;
+    
+    const finalFvx = Math.cos(gameCar.angle) * gameCar.speed; 
+    const finalFvy = Math.sin(gameCar.angle) * gameCar.speed; 
+    
+    gameCar.vx += (finalFvx - gameCar.vx) * driftIntensity; 
+    gameCar.vy += (finalFvy - gameCar.vy) * driftIntensity; 
+    gameCar.x += gameCar.vx; gameCar.y += gameCar.vy;
+
+    document.getElementById('speedDisp').innerText = Math.floor(Math.sqrt(gameCar.vx**2 + gameCar.vy**2) * 15);
+    document.getElementById('gaugeNeedle').style.transform = `translateX(-50%) rotate(${-120 + (gameCar.currentRPM * 240)}deg)`;
+    gameCar.gX += ((((gameCar.vx - oldVx) * Math.cos(gameCar.angle) + (gameCar.vy - oldVy) * Math.sin(gameCar.angle)) * 80) - gameCar.gX) * 0.1; gameCar.gY += ((((gameCar.vx - oldVx) * -Math.sin(gameCar.angle) + (gameCar.vy - oldVy) * Math.cos(gameCar.angle)) * 80) - gameCar.gY) * 0.1;
+    const distance = Math.sqrt(gameCar.gX**2 + gameCar.gY**2); let finalX = gameCar.gX; let finalY = gameCar.gY; if (distance > 45) { const ratio = 45 / distance; finalX *= ratio; finalY *= ratio; }
+    document.getElementById('accelDot').style.transform = `translate(${-finalY}px, ${finalX}px)`;
+
+    const postDriftGap = Math.sqrt((finalFvx-gameCar.vx)**2 + (finalFvy-gameCar.vy)**2);
+    if (postDriftGap > 1.3 || isHandbraking) {
+        gameCar.skidmarks.push({x: gameCar.x, y: gameCar.y, angle: gameCar.angle, life: 1});
+        if(Math.random() > 0.4) {
+            const tX = -gameCar.height / 2.5; const tY = gameCar.width / 2.5;[{x: gameCar.x + tX * Math.cos(gameCar.angle) - tY * Math.sin(gameCar.angle), y: gameCar.y + tX * Math.sin(gameCar.angle) + tY * Math.cos(gameCar.angle)}, {x: gameCar.x + tX * Math.cos(gameCar.angle) + tY * Math.sin(gameCar.angle), y: gameCar.y + tX * Math.sin(gameCar.angle) - tY * Math.cos(gameCar.angle)}].forEach(pos => gameCar.particles.push({ x: pos.x, y: pos.y, size: Math.random()*5+4, opacity: 0.5, vx: (Math.random()-0.5)*1.2, vy: (Math.random()-0.5)*1.2 }));
+        }
+    }
+    
+    gameCar.skidmarks.forEach((s, i) => { s.life -= 0.003; if(s.life <= 0) gameCar.skidmarks.splice(i, 1); });
+    gameCar.particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.opacity -= 0.02; p.size += 0.4; if(p.opacity <= 0) gameCar.particles.splice(i, 1); });
+    if (gameCar.x > canvas.width + 50) gameCar.x = -50; if (gameCar.x < -50) gameCar.x = canvas.width + 50;
+    if (gameCar.y > canvas.height + 50) gameCar.y = -50; if (gameCar.y < -50) gameCar.y = canvas.height + 50;
+}
+
+function draw() {
+    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    gameCar.skidmarks.forEach(s => { ctx.fillStyle = `rgba(0,0,0,${s.life * 0.3})`; ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.angle); ctx.fillRect(-gameCar.height/2, -gameCar.width/2.5, 6, 4); ctx.fillRect(-gameCar.height/2, gameCar.width/2.5 - 4, 6, 4); ctx.restore(); });
+    gameCar.particles.forEach(p => { ctx.fillStyle = `rgba(120,120,120,${p.opacity})`; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); });
+    
+    ctx.save(); ctx.translate(gameCar.x, gameCar.y); ctx.rotate(gameCar.angle);
+    ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(-gameCar.height/2+4, -gameCar.width/2+4, gameCar.height, gameCar.width); ctx.shadowBlur = 0;
+    
+    const carH = gameCar.height; const carW = gameCar.width; const grad = ctx.createLinearGradient(0, -carW/2, 0, carW/2);
+    grad.addColorStop(0, gameCar.darkColor); grad.addColorStop(0.5, gameCar.mainColor); grad.addColorStop(1, gameCar.darkColor);
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.roundRect(-carH/2, -carW/2, carH, carW, gameCar.type === 'miata-body' ? 10 : 5); ctx.fill();
+    
+    if (gameCar.type === 'bmw-body') {
+        ctx.fillStyle = gameCar.mainColor; ctx.beginPath(); ctx.roundRect(carH/2 - 25, -carW/2 - 2, 20, carW + 4, 3); ctx.fill(); ctx.beginPath(); ctx.roundRect(-carH/2 + 5, -carW/2 - 3, 25, carW + 6, 3); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.fillRect(carH/2 - 2, -carW/2 - 3, 6, carW + 6); ctx.fillStyle = '#000'; ctx.fillRect(10, carW/2, 8, 4);
+        ctx.fillStyle = '#111'; ctx.fillRect(-carH/2 + 8, -carW/4, 4, carW/2); ctx.fillRect(-carH/2, -carW/2 - 5, 10, carW + 10); ctx.fillRect(-carH/2 - 2, -carW/2 - 5, 14, 2); ctx.fillRect(-carH/2 - 2, carW/2 + 3, 14, 2);  
+    } else if (gameCar.type === 'skyline-body') { ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(-carH/2, -carW/6, carH, carW/12); ctx.fillRect(-carH/2, carW/12, carH, carW/12); }
+    
+    if (gameCar.type === 'skyline-body') { ctx.fillStyle = '#fff'; ctx.shadowBlur = 5; ctx.shadowColor = 'white'; ctx.fillRect(carH/2 - 14, -carW/2 + 2, 12, 10); ctx.fillRect(carH/2 - 14, carW/2 - 12, 12, 10); ctx.shadowBlur = 0; } 
+    else if (gameCar.type === 'bmw-body') { ctx.fillStyle = '#fff'; ctx.shadowBlur = 5; ctx.shadowColor = 'white'; ctx.fillRect(carH/2 - 12, -carW/2 + 2, 8, 8); ctx.fillRect(carH/2 - 12, carW/2 - 10, 8, 8); ctx.shadowBlur = 0; } 
+    else { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(carH/2 - 12, -carW/2.5, 10, 6); ctx.fillRect(carH/2 - 12, carW/2.5 - 6, 10, 6); }
+    
+    ctx.fillStyle = '#1c2833'; ctx.beginPath(); ctx.roundRect(carH/2 - 50, -carW/2.6, 25, carW/1.3, 3); ctx.fill(); ctx.beginPath(); ctx.roundRect(-carH/2 + 10, -carW/3.2, 12, carW/1.6, 2); ctx.fill();
+    
+    gameCar.decals.forEach(d => { ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(d.angle * Math.PI / 180); ctx.scale(d.scale, d.scale); if (d.skewX || d.skewY) ctx.transform(1, Math.tan((d.skewY||0)*Math.PI/180), Math.tan((d.skewX||0)*Math.PI/180), 1, 0, 0); ctx.fillStyle = d.color; ctx.font = '900 24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.value, 0, 0); ctx.restore(); });
+
+    let isBraking = getInputValue('brake') > 0 || getInputValue('handbrake') > 0.5;
+    if (gameCar.type === 'skyline-body') {
+        ctx.fillStyle = '#600'; ctx.beginPath(); ctx.arc(-carH/2 + 3, -carW/4, 4, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-carH/2 + 3, carW/4, 4, 0, Math.PI*2); ctx.fill();
+        if (isBraking) { ctx.fillStyle = '#f00'; ctx.shadowBlur = 15; ctx.shadowColor = 'red'; ctx.beginPath(); ctx.arc(-carH/2 + 3, -carW/4, 4.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-carH/2 + 3, carW/4, 4.5, 0, Math.PI*2); ctx.fill(); }
+    } else if (gameCar.type === 'bmw-body') { 
+        ctx.fillStyle = '#a00'; ctx.fillRect(-carH/2, -carW/2 + 2, 4, 12); ctx.fillRect(-carH/2, carW/2 - 14, 4, 12);
+        if (isBraking) { ctx.fillStyle = '#ff1111'; ctx.shadowBlur = 15; ctx.shadowColor = 'red'; ctx.fillRect(-carH/2, -carW/2 + 2, 4, 12); ctx.fillRect(-carH/2, carW/2 - 14, 4, 12); }
+    } else {
+        if (isBraking) { ctx.fillStyle = '#ff0000'; ctx.shadowBlur = 15; ctx.shadowColor = 'red'; ctx.fillRect(-carH/2, -carW/2+2, 4, 8); ctx.fillRect(-carH/2, carW/2-10, 4, 8); }
+    }
+    ctx.shadowBlur = 0; ctx.restore();
+}
+
+function loop() { handleMenuInput(); update(); draw(); requestAnimationFrame(loop); }
+canvas.style.filter = 'blur(10px)'; loop();
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
+
+setTimeout(refreshNav, 100);
+</script>
+</body>
+</html>
